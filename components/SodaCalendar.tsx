@@ -1,13 +1,86 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { supabase } from '@/lib/supabase';
+
+interface DrinkEntry {
+  id: string;
+  date: string;
+  quantity: number;
+}
 
 const SodaCalendar = () => {
   const [year] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth());
   const [consumption, setConsumption] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
 
+  // Fetch drinks data from Supabase
+  useEffect(() => {
+    const fetchDrinks = async () => {
+      const startDate = new Date(year, month, 1).toISOString();
+      const endDate = new Date(year, month + 1, 0).toISOString();
+
+      const { data, error } = await supabase
+        .from('drinks')
+        .select('*')
+        .gte('date', startDate)
+        .lte('date', endDate);
+
+      if (error) {
+        console.error('Error fetching drinks:', error);
+        return;
+      }
+
+      const drinkMap: Record<string, number> = {};
+      data?.forEach((drink: DrinkEntry) => {
+        const date = new Date(drink.date);
+        const dateKey = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+        drinkMap[dateKey] = drink.quantity;
+      });
+
+      setConsumption(drinkMap);
+      setLoading(false);
+    };
+
+    fetchDrinks();
+  }, [year, month]);
+
+  const handleDayClick = async (day: number) => {
+    const dateKey = `${year}-${month + 1}-${day}`;
+    const currentValue = consumption[dateKey] || 0;
+    const newValue = currentValue >= 6 ? 0 : currentValue + 1;
+
+    // Update local state
+    setConsumption(prev => ({
+      ...prev,
+      [dateKey]: newValue
+    }));
+
+    // Update Supabase
+    const date = new Date(year, month, day).toISOString();
+    
+    const { error } = await supabase
+      .from('drinks')
+      .upsert({
+        date,
+        quantity: newValue,
+      }, {
+        onConflict: 'date'
+      });
+
+    if (error) {
+      console.error('Error updating drink:', error);
+      // Revert local state if update fails
+      setConsumption(prev => ({
+        ...prev,
+        [dateKey]: currentValue
+      }));
+    }
+  };
+
+  // Rest of your existing code remains the same
   const getColorForConsumption = (drinks: number) => {
     if (drinks === 0) return 'bg-green-500';
     if (drinks <= 2) return 'bg-yellow-500';
@@ -22,16 +95,6 @@ const SodaCalendar = () => {
 
   const getFirstDayOfMonth = (year: number, month: number) => {
     return new Date(year, month, 1).getDay();
-  };
-
-  const handleDayClick = (day: number) => {
-    const dateKey = `${year}-${month + 1}-${day}`;
-    const currentValue = consumption[dateKey] || 0;
-    const newValue = currentValue >= 6 ? 0 : currentValue + 1;
-    setConsumption(prev => ({
-      ...prev,
-      [dateKey]: newValue
-    }));
   };
 
   const renderCalendar = () => {
@@ -65,6 +128,10 @@ const SodaCalendar = () => {
 
     return days;
   };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <Card className="w-full max-w-3xl">
