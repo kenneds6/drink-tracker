@@ -73,7 +73,7 @@ First, let's set up your database:
 1. Clone and prepare the repository:
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/drink-tracker.git
+git clone https://github.com/kenneds6/drink-tracker.git
 
 # Navigate to project directory
 cd drink-tracker
