@@ -245,5 +245,3 @@ If you encounter any issues or have questions:
 1. Check the Issues tab on GitHub
 2. Create a new issue if needed
 3. Provide detailed information about your problem
-
-We aim to respond to all issues within 48 hours.
